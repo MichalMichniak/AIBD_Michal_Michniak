@@ -57,7 +57,27 @@ def number_films_in_category(category_id:int)->pd.DataFrame:
     Returns:
     pd.DataFrame: DataFrame zawierający wyniki zapytania
     '''
-    return None
+    try:
+        int(category_id)
+    except:
+        return None
+    strr = f"""
+    SELECT
+        category.name AS category,
+        COUNT(film.film_id)
+    FROM
+        category
+    RIGHT JOIN film_category ON film_category.category_id = category.category_id
+    RIGHT JOIN film ON film.film_id = film_category.film_id
+    WHERE
+        category.category_id = {category_id}
+    GROUP BY
+        category.name;
+    """
+    df = pd.read_sql(strr, con=connection)
+    if len(df) == 0:
+        return None
+    return df
 
 def number_film_by_length(min_length: Union[int,float] = 0, max_length: Union[int,float] = 1e6 ) :
     ''' Funkcja zwracająca wynik zapytania do bazy o ilość filmów o dla poszczegulnych długości pomiędzy wartościami min_length a max_length.
@@ -74,7 +94,26 @@ def number_film_by_length(min_length: Union[int,float] = 0, max_length: Union[in
     Returns:
     pd.DataFrame: DataFrame zawierający wyniki zapytania
     '''
-    return None
+    try:
+        int(min_length)
+        int(max_length)
+    except:
+        return None
+    strr = f"""
+    SELECT
+        length,
+        COUNT(film_id)
+    FROM
+        film
+    GROUP BY
+        length
+    HAVING
+        film.length >= {min_length} AND film.length <= {max_length}
+    """
+    df = pd.read_sql(strr, con=connection)
+    if len(df) == 0:
+        return None
+    return df
 
 def client_from_city(city:str)->pd.DataFrame:
     ''' Funkcja zwracająca wynik zapytania do bazy o listę klientów z zadanego miasta przez wartość city.
@@ -92,7 +131,27 @@ def client_from_city(city:str)->pd.DataFrame:
     Returns:
     pd.DataFrame: DataFrame zawierający wyniki zapytania
     '''
-    return None
+    if not (type(city) is str) and not (city == ""):
+        return None
+
+    strr = f"""
+    SELECT
+        city,customer.first_name,customer.last_name
+    FROM
+        city
+    INNER JOIN address ON city.city_id = address.city_id 
+    INNER JOIN customer ON address.address_id = customer.address_id
+    WHERE city IN ('{city}')
+    ORDER BY
+        customer.last_name ASC,
+        customer.first_name ASC
+    """
+    
+    
+    df = pd.read_sql(strr, con=connection)
+    # if len(df) == 0:
+    #     return None
+    return df
 
 def avg_amount_by_length(length:Union[int,float])->pd.DataFrame:
     ''' Funkcja zwracająca wynik zapytania do bazy o średnią wartość wypożyczenia filmów dla zadanej długości length.
@@ -109,7 +168,23 @@ def avg_amount_by_length(length:Union[int,float])->pd.DataFrame:
     Returns:
     pd.DataFrame: DataFrame zawierający wyniki zapytania
     '''
-    return None
+    if not (isinstance(length,int) or isinstance(length,int)):
+        return None
+    strr = f"""
+    SELECT
+        length,AVG(payment.amount)
+    FROM
+        film,inventory,rental,payment
+    WHERE film.film_id = inventory.film_id AND inventory.inventory_id = rental.inventory_id AND rental.rental_id = payment.rental_id
+    GROUP BY
+        length
+    HAVING
+        length = {length}
+    """
+    df = pd.read_sql(strr, con=connection)
+    # if len(df) == 0:
+    #     return None
+    return df
 
 def client_by_sum_length(sum_min:Union[int,float])->pd.DataFrame:
     ''' Funkcja zwracająca wynik zapytania do bazy o sumaryczny czas wypożyczonych filmów przez klientów powyżej zadanej wartości .
@@ -126,7 +201,30 @@ def client_by_sum_length(sum_min:Union[int,float])->pd.DataFrame:
     Returns:
     pd.DataFrame: DataFrame zawierający wyniki zapytania
     '''
-    return None  
+    if not (isinstance(sum_min,int) or isinstance(sum_min,int)):
+        return None
+    strr = f"""
+    SELECT
+        customer.first_name,customer.last_name, SUM(film.length)
+    FROM
+        rental,customer,film,inventory
+    WHERE rental.customer_id = customer.customer_id
+        AND inventory.inventory_id = rental.inventory_id
+        AND film.film_id = inventory.film_id
+    
+    GROUP BY
+        customer.customer_id
+    HAVING
+        SUM(film.length) >= {sum_min}
+    ORDER BY
+        SUM(film.length) ASC,
+        customer.last_name ASC,
+        customer.first_name ASC
+    """
+    df = pd.read_sql(strr, con=connection)
+    # if len(df) == 0:
+    #     return None
+    return df
 
 def category_statistic_length(name:str)->pd.DataFrame:
     ''' Funkcja zwracająca wynik zapytania do bazy o statystykę długości filmów w kategorii o zadanej nazwie.
@@ -142,4 +240,20 @@ def category_statistic_length(name:str)->pd.DataFrame:
     Returns:
     pd.DataFrame: DataFrame zawierający wyniki zapytania
     '''
-    return None
+    if not (isinstance(name,str)):
+        return None
+    strr = f"""
+    SELECT
+        category.name AS category, AVG(film.length), SUM(film.length), MIN(film.length), MAX(film.length)
+    FROM
+        category,film_category,film
+    WHERE
+        category.category_id = film_category.category_id
+        AND film_category.film_id = film.film_id
+    GROUP BY
+        category.name
+    HAVING
+        category.name = '{name}'
+    """
+    df = pd.read_sql(strr, con=connection)
+    return df
