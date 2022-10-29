@@ -134,18 +134,24 @@ def film_title_case_insensitive(words:list) :
     Returns:
     pd.DataFrame: DataFrame zawierający wyniki zapytania
     '''
-    for word in words:
-        if type(word) == str:
-            condition = f" film.title ~~* '%{word}%',"
-        else:
+    try:
+        if type(words) != list:
             return None
+        for word in words:
+            if type(word) == str:
+                pass
+            else:
+                return None
+    except:
+        return None
+    strr = '|'.join(words)
+
     strr = f"""
     SELECT
         DISTINCT(film.title)
     FROM film
-    INNER JOIN film_actor ON film_actor.film_id = film.film_id
-    INNER JOIN actor ON film_actor.actor_id = actor.actor_id
-    WHERE {condition[:-1]}
+    WHERE film.title ~* '([ ]|^)({strr})([ ]|$)'
+    ORDER BY film.title
     """
 
     df = pd.read_sql(strr, con=connection)
